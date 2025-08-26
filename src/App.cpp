@@ -201,8 +201,7 @@
         ci.imageArrayLayers = 1;
         ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        uint32_t queueFamilyIndices[] = { vk_->graphicsQueueFamily };
-        ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         ci.queueFamilyIndexCount = 0;
         ci.pQueueFamilyIndices = nullptr;
 
