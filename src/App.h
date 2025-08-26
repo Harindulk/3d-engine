@@ -19,9 +19,7 @@ public:
 private:
     void initWindow(int width, int height, const char* title);
     void initVulkan();
-    void pickPhysicalDevice();
     void createSurface();
-    void createDevice();
     
     
     // Swapchain helpers

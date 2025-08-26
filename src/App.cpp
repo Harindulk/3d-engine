@@ -19,6 +19,7 @@
 #include "vulkan/VkObjects.h"
 #include "vulkan/Utils.h"
 #include "vulkan/Instance.h"
+#include "vulkan/Device.h"
 #include "window/Window.h"
 
     App::App(int width, int height, const char* title) {
@@ -51,8 +52,8 @@
         vk_ = new VkObjects();
     vulkan::InstanceManager::createInstance(vk_);
     createSurface();
-        pickPhysicalDevice();
-        createDevice();
+    vulkan::DeviceManager::pickPhysicalDevice(vk_);
+    vulkan::DeviceManager::createLogicalDevice(vk_);
         createSwapchain();
         createImageViews();
 
@@ -76,60 +77,7 @@
         }
     }
 
-    void App::pickPhysicalDevice() {
-        uint32_t deviceCount = 0;
-        vkEnumeratePhysicalDevices(vk_->instance, &deviceCount, nullptr);
-        if (deviceCount == 0) throw std::runtime_error("No Vulkan physical devices found");
-        std::vector<VkPhysicalDevice> devices(deviceCount);
-        vkEnumeratePhysicalDevices(vk_->instance, &deviceCount, devices.data());
-
-        for (auto dev : devices) {
-            uint32_t qCount = 0; 
-            vkGetPhysicalDeviceQueueFamilyProperties(dev, &qCount, nullptr);
-            std::vector<VkQueueFamilyProperties> qProps(qCount);
-            vkGetPhysicalDeviceQueueFamilyProperties(dev, &qCount, qProps.data());
-
-            for (uint32_t i = 0; i < qCount; ++i) {
-                VkBool32 present = VK_FALSE;
-                vkGetPhysicalDeviceSurfaceSupportKHR(dev, i, vk_->surface, &present);
-                if ((qProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && present) {
-                    vk_->physicalDevice = dev;
-                    vk_->graphicsQueueFamily = i;
-                    break;
-                }
-            }
-            if (vk_->physicalDevice) break;
-        }
-
-        if (vk_->physicalDevice == VK_NULL_HANDLE) {
-            throw std::runtime_error("Failed to find a suitable GPU");
-        }
-
-        VkPhysicalDeviceProperties props{};
-        vkGetPhysicalDeviceProperties(vk_->physicalDevice, &props);
-        std::cout << "Selected GPU: " << props.deviceName << std::endl;
-    }
-
-    void App::createDevice() {
-        float priority = 1.0f;
-        VkDeviceQueueCreateInfo qci{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
-        qci.queueFamilyIndex = vk_->graphicsQueueFamily;
-        qci.queueCount = 1;
-        qci.pQueuePriorities = &priority;
-
-        const char* deviceExts[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-
-        VkDeviceCreateInfo dci{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-        dci.queueCreateInfoCount = 1;
-        dci.pQueueCreateInfos = &qci;
-        dci.enabledExtensionCount = 1;
-        dci.ppEnabledExtensionNames = deviceExts;
-
-        if (vkCreateDevice(vk_->physicalDevice, &dci, nullptr, &vk_->device) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create logical device");
-        }
-        vkGetDeviceQueue(vk_->device, vk_->graphicsQueueFamily, 0, &vk_->graphicsQueue);
-    }
+    // Device selection and creation handled by vulkan::DeviceManager
 
     // --- Swapchain helpers ---
 
@@ -539,10 +487,8 @@
     #ifdef AURORA_ENABLE_VALIDATION
             vulkan::InstanceManager::destroyDebugMessenger(vk_);
     #endif
-        if (vk_->device) {
-            vkDeviceWaitIdle(vk_->device);
-            vkDestroyDevice(vk_->device, nullptr);
-        }
+        // Destroy logical device
+        vulkan::DeviceManager::destroyDevice(vk_);
         if (vk_->surface) vkDestroySurfaceKHR(vk_->instance, vk_->surface, nullptr);
         if (vk_->instance) vkDestroyInstance(vk_->instance, nullptr);
         delete vk_; vk_ = nullptr;
