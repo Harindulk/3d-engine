@@ -1,0 +1,63 @@
+# Repository-level .gitignore for 3d-engine
+
+# Ignore CMake build directory and artifacts
+/build/
+/build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+cmake_uninstall.cmake
+generate.stamp
+
+# Ignore Visual Studio generated files and user settings
+*.suo
+*.user
+*.vcxproj*
+*.sln
+*.vcxproj.filters
+*.vcxproj.user
+.vs/
+
+# Ignore compiled objects and binary outputs
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exe
+*.dll
+*.lib
+*.a
+*.so
+*.dylib
+bin/
+bin/**
+
+# Debug/Release build folders
+/Debug/
+/Release/
+/x64/
+
+# MSBuild / VS logs and temp
+*.tlog
+*.lastbuildstate
+*.recipe
+*.idb
+ipch/
+
+# Ninja / Make artifacts
+build.ninja
+rules.ninja
+.ninja_deps
+.ninja_log
+Makefile
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+*.tmp
+
+# Keep external library source ignores local to their folders
+# (external/glfw has its own .gitignore)
