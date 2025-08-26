@@ -4,6 +4,14 @@
 #include <vector>
 
 struct GLFWwindow;
+struct VkObjects;
+
+#pragma once
+
+#include <string>
+#include <vector>
+
+struct GLFWwindow;
 
 class App {
 public:
@@ -22,12 +30,36 @@ private:
     void createInstance();
     void createSurface();
     void createDevice();
+    
+    // Validation / debug helpers (conditionally compiled)
+#ifdef AURORA_ENABLE_VALIDATION
+    bool checkValidationLayerSupport();
+    std::vector<const char*> getRequiredExtensions();
+    void setupDebugMessenger();
+#endif
+    
+    // Swapchain helpers
+    void createSwapchain();
+    void createImageViews();
+    void cleanupSwapchain();
+
+    // Rendering helpers
+    void createRenderPass();
+    void createGraphicsPipeline();
+    void createFramebuffers();
+    void createCommandPool();
+    void createCommandBuffers();
+    void createSyncObjects();
+    void drawFrame();
     void mainLoop();
     void cleanupVulkan();
 
 private:
     GLFWwindow* window_ = nullptr;
 
-    struct VkObjects;
     VkObjects* vk_ = nullptr;
+    // Simple FPS counter (updated in mainLoop)
+    size_t frameCount_ = 0;
+    double lastFPSTime_ = 0.0;
+    int fps_ = 0;
 };
