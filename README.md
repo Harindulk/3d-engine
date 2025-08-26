@@ -2,7 +2,6 @@
 
 Aurora3D is a **from-scratch 3D game engine experiment** built with **C++20**, **Vulkan**, and **GLFW**.  
 Right now it opens a window, initializes Vulkan, and selects a GPU.  
-The next steps are building a swapchain and rendering the first triangle.
 
 ---
 
