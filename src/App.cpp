@@ -15,57 +15,23 @@
 #include <vulkan/vulkan_core.h>
 #endif
 
-struct VkObjects {
-    VkInstance instance = VK_NULL_HANDLE;
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device = VK_NULL_HANDLE;
-    uint32_t graphicsQueueFamily = 0;
-    VkQueue graphicsQueue = VK_NULL_HANDLE;
-    // Debug messenger (optional)
-    VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
-    // Swapchain objects
-    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-    std::vector<VkImage> swapchainImages;
-    std::vector<VkImageView> swapchainImageViews;
-    VkFormat swapchainImageFormat = VK_FORMAT_B8G8R8A8_SRGB;
-    VkExtent2D swapchainExtent{};
-
-    // Render objects
-    VkRenderPass renderPass = VK_NULL_HANDLE;
-    VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-    VkPipeline graphicsPipeline = VK_NULL_HANDLE;
-    std::vector<VkFramebuffer> swapchainFramebuffers;
-
-    VkCommandPool commandPool = VK_NULL_HANDLE;
-    std::vector<VkCommandBuffer> commandBuffers;
-
-    // Sync
-    std::vector<VkSemaphore> imageAvailableSemaphores;
-    std::vector<VkSemaphore> renderFinishedSemaphores;
-    std::vector<VkFence> inFlightFences;
-    size_t currentFrame = 0;
-};
+// VkObjects moved to its own header
+#include "vulkan/VkObjects.h"
+#include "vulkan/Utils.h"
+#include "vulkan/Instance.h"
+#include "window/Window.h"
 
     App::App(int width, int height, const char* title) {
-        initWindow(width, height, title);
+        window_ = new Window(width, height, title);
         initVulkan();
     }
 
     App::~App() {
         cleanupVulkan();
         if (window_) {
-            glfwDestroyWindow(window_);
-            glfwTerminate();
+            delete window_;
             window_ = nullptr;
         }
-    }
-
-    void App::initWindow(int width, int height, const char* title) {
-        if (!glfwInit()) throw std::runtime_error("GLFW init failed");
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); 
-        window_ = glfwCreateWindow(width, height, title, nullptr, nullptr);
-        if (!window_) throw std::runtime_error("GLFW window creation failed");
     }
 
     // forward declarations for helpers
@@ -83,8 +49,8 @@ struct VkObjects {
 
     void App::initVulkan() {
         vk_ = new VkObjects();
-        createInstance();
-        createSurface();
+    vulkan::InstanceManager::createInstance(vk_);
+    createSurface();
         pickPhysicalDevice();
         createDevice();
         createSwapchain();
@@ -94,7 +60,7 @@ struct VkObjects {
         {
             auto details = querySwapchainSupport(vk_->physicalDevice, vk_->surface);
             vk_->swapchainImageFormat = chooseSwapSurfaceFormat(details.formats).format;
-            vk_->swapchainExtent = chooseSwapExtent(details.capabilities, window_);
+            vk_->swapchainExtent = chooseSwapExtent(details.capabilities, window_->getNativeWindow());
         }
         createRenderPass();
         createGraphicsPipeline();
@@ -104,52 +70,8 @@ struct VkObjects {
         createSyncObjects();
     }
 
-    void App::createInstance() {
-        VkApplicationInfo appInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-        appInfo.pApplicationName = "Aurora3D";
-        appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
-        appInfo.pEngineName = "Aurora3D";
-        appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_2;
-
-        // Required extensions from GLFW
-        uint32_t glfwExtCount = 0;
-        const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
-        std::vector<const char*> extensions(glfwExts, glfwExts + glfwExtCount);
-
-    #ifdef AURORA_ENABLE_VALIDATION
-        // Add debug utils extension
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    #endif
-
-        VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-        ci.pApplicationInfo = &appInfo;
-        ci.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-        ci.ppEnabledExtensionNames = extensions.data();
-
-    #ifdef AURORA_ENABLE_VALIDATION
-        // Validation layers
-        const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
-        if (!checkValidationLayerSupport()) {
-            std::cerr << "Warning: validation layers requested but not available\n";
-            // continue without layers
-        } else {
-            ci.enabledLayerCount = 1;
-            ci.ppEnabledLayerNames = layers;
-        }
-    #endif
-
-        if (vkCreateInstance(&ci, nullptr, &vk_->instance) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create Vulkan instance");
-        }
-
-    #ifdef AURORA_ENABLE_VALIDATION
-        setupDebugMessenger();
-    #endif
-    }
-
     void App::createSurface() {
-        if (glfwCreateWindowSurface(vk_->instance, window_, nullptr, &vk_->surface) != VK_SUCCESS) {
+    if (glfwCreateWindowSurface(vk_->instance, window_->getNativeWindow(), nullptr, &vk_->surface) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create window surface");
         }
     }
@@ -263,7 +185,7 @@ struct VkObjects {
 
         VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(details.formats);
         VkPresentModeKHR presentMode = chooseSwapPresentMode(details.presentModes);
-        VkExtent2D extent = chooseSwapExtent(details.capabilities, window_);
+        VkExtent2D extent = chooseSwapExtent(details.capabilities, window_->getNativeWindow());
 
         uint32_t imageCount = details.capabilities.minImageCount + 1;
         if (details.capabilities.maxImageCount > 0 && imageCount > details.capabilities.maxImageCount) {
@@ -346,16 +268,6 @@ struct VkObjects {
         }
     }
 
-    static std::vector<char> readFile(const std::string& path) {
-        std::ifstream file(path, std::ios::ate | std::ios::binary);
-        if (!file.is_open()) throw std::runtime_error("failed to open file: " + path);
-        size_t fileSize = (size_t)file.tellg();
-        std::vector<char> buffer(fileSize);
-        file.seekg(0);
-        file.read(buffer.data(), fileSize);
-        file.close();
-        return buffer;
-    }
 
     void App::createRenderPass() {
         VkAttachmentDescription colorAttachment{};
@@ -388,25 +300,16 @@ struct VkObjects {
         }
     }
 
-    VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code) {
-        VkShaderModuleCreateInfo ci{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-        ci.codeSize = code.size();
-        ci.pCode = reinterpret_cast<const uint32_t*>(code.data());
-        VkShaderModule module;
-        if (vkCreateShaderModule(device, &ci, nullptr, &module) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create shader module");
-        }
-        return module;
-    }
+    // shader utilities moved to vkutils::readFile and vkutils::createShaderModule
 
     void App::createGraphicsPipeline() {
         std::string vertPath = std::string("build/shaders/triangle.vert.spv");
         std::string fragPath = std::string("build/shaders/triangle.frag.spv");
-        auto vertCode = readFile(vertPath);
-        auto fragCode = readFile(fragPath);
+        auto vertCode = vkutils::readFile(vertPath);
+        auto fragCode = vkutils::readFile(fragPath);
 
-        VkShaderModule vertModule = createShaderModule(vk_->device, vertCode);
-        VkShaderModule fragModule = createShaderModule(vk_->device, fragCode);
+        VkShaderModule vertModule = vkutils::createShaderModule(vk_->device, vertCode);
+        VkShaderModule fragModule = vkutils::createShaderModule(vk_->device, fragCode);
 
         VkPipelineShaderStageCreateInfo vertStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
         vertStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -633,13 +536,9 @@ struct VkObjects {
         // Destroy swapchain and related
         cleanupSwapchain();
 
-        // Destroy debug messenger first if present
+        // Destroy debug messenger (managed by InstanceManager)
     #ifdef AURORA_ENABLE_VALIDATION
-        if (vk_->debugMessenger) {
-            auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(vk_->instance, "vkDestroyDebugUtilsMessengerEXT");
-            if (func) func(vk_->instance, vk_->debugMessenger, nullptr);
-            vk_->debugMessenger = VK_NULL_HANDLE;
-        }
+            vulkan::InstanceManager::destroyDebugMessenger(vk_);
     #endif
         if (vk_->device) {
             vkDeviceWaitIdle(vk_->device);
@@ -653,8 +552,8 @@ struct VkObjects {
     void App::mainLoop() {
         lastFPSTime_ = glfwGetTime();
         frameCount_ = 0;
-        while (!glfwWindowShouldClose(window_)) {
-            glfwPollEvents();
+        while (!window_->shouldClose()) {
+            window_->pollEvents();
             drawFrame();
 
             // FPS counting
@@ -665,9 +564,9 @@ struct VkObjects {
                 fps_ = static_cast<int>(frameCount_ / elapsed + 0.5);
                 frameCount_ = 0;
                 lastFPSTime_ = now;
-                // update window title with FPS
+                // update window title with FPS (Window encapsulates GLFW)
                 std::string title = "Aurora3D - FPS: " + std::to_string(fps_);
-                glfwSetWindowTitle(window_, title.c_str());
+                window_->setTitle(title);
             }
         }
     }
@@ -676,41 +575,4 @@ struct VkObjects {
         mainLoop();
     }
 
-    #ifdef AURORA_ENABLE_VALIDATION
-    bool App::checkValidationLayerSupport() {
-        uint32_t layerCount = 0;
-        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-        std::vector<VkLayerProperties> available(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, available.data());
-
-        const char* layerName = "VK_LAYER_KHRONOS_validation";
-        for (const auto& layer : available) {
-            if (strcmp(layer.layerName, layerName) == 0) return true;
-        }
-        return false;
-    }
-
-    void App::setupDebugMessenger() {
-        if (!vk_->instance) return;
-
-        VkDebugUtilsMessengerCreateInfoEXT ci{VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
-        ci.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        ci.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        ci.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-                                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                                 void* pUserData) -> VkBool32 {
-            std::cerr << "[VULKAN] " << pCallbackData->pMessage << std::endl;
-            return VK_FALSE;
-        };
-
-        auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(vk_->instance, "vkCreateDebugUtilsMessengerEXT");
-        if (func) {
-            if (func(vk_->instance, &ci, nullptr, &vk_->debugMessenger) != VK_SUCCESS) {
-                std::cerr << "Failed to set up debug messenger\\n";
-            }
-        } else {
-            std::cerr << "vkCreateDebugUtilsMessengerEXT not found\\n";
-        }
-    }
-    #endif
+    // Validation / debug handled by vulkan::InstanceManager

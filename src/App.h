@@ -3,15 +3,8 @@
 #include <string>
 #include <vector>
 
-struct GLFWwindow;
 struct VkObjects;
-
-#pragma once
-
-#include <string>
-#include <vector>
-
-struct GLFWwindow;
+class Window;
 
 class App {
 public:
@@ -27,16 +20,9 @@ private:
     void initWindow(int width, int height, const char* title);
     void initVulkan();
     void pickPhysicalDevice();
-    void createInstance();
     void createSurface();
     void createDevice();
     
-    // Validation / debug helpers (conditionally compiled)
-#ifdef AURORA_ENABLE_VALIDATION
-    bool checkValidationLayerSupport();
-    std::vector<const char*> getRequiredExtensions();
-    void setupDebugMessenger();
-#endif
     
     // Swapchain helpers
     void createSwapchain();
@@ -55,7 +41,7 @@ private:
     void cleanupVulkan();
 
 private:
-    GLFWwindow* window_ = nullptr;
+    Window* window_ = nullptr;
 
     VkObjects* vk_ = nullptr;
     // Simple FPS counter (updated in mainLoop)
