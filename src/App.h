@@ -22,10 +22,7 @@ private:
     void createSurface();
     
     
-    // Swapchain helpers
-    void createSwapchain();
-    void createImageViews();
-    void cleanupSwapchain();
+    // Swapchain handled by vulkan::SwapchainManager
 
     // Rendering helpers
     void createRenderPass();
@@ -34,9 +31,9 @@ private:
     void createCommandPool();
     void createCommandBuffers();
     void createSyncObjects();
-    void drawFrame();
     void mainLoop();
     void cleanupVulkan();
+    void recreateResources();
 
 private:
     Window* window_ = nullptr;
