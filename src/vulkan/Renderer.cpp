@@ -6,9 +6,11 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
+#include <iostream>
 #include <filesystem>
 
 #include "vulkan/Utils.h"
+#include "vulkan/Swapchain.h"
 
 namespace vulkan {
 
@@ -218,12 +220,15 @@ void Renderer::createSyncObjects(VkObjects* vk) {
     }
 }
 
-void Renderer::drawFrame(VkObjects* vk) {
+void Renderer::drawFrame(VkObjects* vk, GLFWwindow* window) {
     vkWaitForFences(vk->device, 1, &vk->inFlightFences[vk->currentFrame], VK_TRUE, UINT64_MAX);
     uint32_t imageIndex;
     VkResult res = vkAcquireNextImageKHR(vk->device, vk->swapchain, UINT64_MAX, vk->imageAvailableSemaphores[vk->currentFrame], VK_NULL_HANDLE, &imageIndex);
     if (res == VK_ERROR_OUT_OF_DATE_KHR) {
-        // swapchain recreation not implemented yet
+        std::cout << "Renderer::drawFrame - acquire returned OUT_OF_DATE, recreating..." << std::endl;
+        // Recreate swapchain and renderer resources
+        vulkan::SwapchainManager::recreateSwapchain(vk, window);
+        vulkan::Renderer::recreate(vk, window);
         return;
     } else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
         throw std::runtime_error("Failed to acquire swapchain image");
@@ -255,7 +260,9 @@ void Renderer::drawFrame(VkObjects* vk) {
 
     res = vkQueuePresentKHR(vk->graphicsQueue, &presentInfo);
     if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
-        // handle swapchain recreation later
+        std::cout << "Renderer::drawFrame - present returned OUT_OF_DATE/SUBOPTIMAL, recreating..." << std::endl;
+        vulkan::SwapchainManager::recreateSwapchain(vk, window);
+        vulkan::Renderer::recreate(vk, window);
     } else if (res != VK_SUCCESS) {
         throw std::runtime_error("Failed to present swapchain image");
     }
@@ -281,22 +288,33 @@ void Renderer::cleanupRenderer(VkObjects* vk) {
 void Renderer::recreate(VkObjects* vk, GLFWwindow* window) {
     // wait idle
     if (vk->device) vkDeviceWaitIdle(vk->device);
+    std::cout << "Renderer: recreate() start" << std::endl;
 
     // cleanup renderer specific resources
+    std::cout << "Renderer: cleaning up renderer resources" << std::endl;
     cleanupRenderer(vk);
 
     // swapchain/framebuffers handled by SwapchainManager; ensure they are valid
     // recreate renderpass/pipeline
+    std::cout << "Renderer: creating render pass" << std::endl;
     createRenderPass(vk);
+    std::cout << "Renderer: creating graphics pipeline" << std::endl;
     createGraphicsPipeline(vk);
 
     // recreate framebuffers for new swapchain extent
     // command buffers and sync objects need to be recreated
     // command pool recreated
-    if (vk->commandPool) vkDestroyCommandPool(vk->device, vk->commandPool, nullptr);
+    if (vk->commandPool) {
+        std::cout << "Renderer: destroying old command pool" << std::endl;
+        vkDestroyCommandPool(vk->device, vk->commandPool, nullptr);
+    }
+    std::cout << "Renderer: creating command pool" << std::endl;
     createCommandPool(vk);
+    std::cout << "Renderer: creating command buffers" << std::endl;
     createCommandBuffers(vk);
+    std::cout << "Renderer: creating sync objects" << std::endl;
     createSyncObjects(vk);
+    std::cout << "Renderer: recreate() complete" << std::endl;
 }
 
 } // namespace vulkan

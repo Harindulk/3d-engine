@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 
 #include <stdexcept>
+#include <iostream>
 #include <vector>
 #include <algorithm>
 
@@ -53,14 +54,11 @@ static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR
 static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& caps, GLFWwindow* window) {
     if (caps.currentExtent.width != UINT32_MAX) return caps.currentExtent;
     int width = 0, height = 0;
-    // If window is minimized, glfwGetFramebufferSize may return 0; wait until non-zero.
-    do {
-        glfwGetFramebufferSize(window, &width, &height);
-        if (width == 0 || height == 0) {
-            // wait for events (blocks until something happens) to avoid busy-loop
-            glfwWaitEvents();
-        }
-    } while (width == 0 || height == 0);
+    // If window is minimized, glfwGetFramebufferSize may return 0. Do not block here
+    // to avoid hanging the app; use a minimal non-zero extent as a safe fallback.
+    glfwGetFramebufferSize(window, &width, &height);
+    if (width == 0) width = 1;
+    if (height == 0) height = 1;
     VkExtent2D actual{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
     actual.width = std::max(caps.minImageExtent.width, std::min(caps.maxImageExtent.width, actual.width));
     actual.height = std::max(caps.minImageExtent.height, std::min(caps.maxImageExtent.height, actual.height));
@@ -176,11 +174,16 @@ void SwapchainManager::cleanupSwapchain(VkObjects* vk) {
 void SwapchainManager::recreateSwapchain(VkObjects* vk, GLFWwindow* window) {
     // wait for device idle before tearing down
     if (vk->device) vkDeviceWaitIdle(vk->device);
+    std::cout << "Swapchain: recreating swapchain..." << std::endl;
     cleanupSwapchain(vk);
+    std::cout << "Swapchain: cleaned up old swapchain" << std::endl;
     createSwapchain(vk, window);
+    std::cout << "Swapchain: created new swapchain" << std::endl;
     createImageViews(vk);
+    std::cout << "Swapchain: image views created" << std::endl;
     // render pass and pipeline may depend on extent; leave framebuffer creation to caller
     createFramebuffers(vk);
+    std::cout << "Swapchain: framebuffers created" << std::endl;
 }
 
 } // namespace vulkan

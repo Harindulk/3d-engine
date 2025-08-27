@@ -11,6 +11,13 @@
 #include <fstream>
 #include <algorithm>
 
+// Optional verbose logging toggle
+#ifdef AURORA_VERBOSE_LOG
+#define AURORA_LOG_VERBOSE(x) std::cout << x << std::endl;
+#else
+#define AURORA_LOG_VERBOSE(x) do {} while(0)
+#endif
+
 #ifdef AURORA_ENABLE_VALIDATION
 #include <vulkan/vulkan_core.h>
 #endif
@@ -112,16 +119,12 @@
         frameCount_ = 0;
         std::cout << "App: entering mainLoop" << std::endl;
         while (!window_->shouldClose()) {
-            std::cout << "App: mainLoop iteration start" << std::endl;
             window_->pollEvents();
-            std::cout << "App: polled events; wasResized=" << (window_->wasResized() ? "true" : "false") << ", shouldClose=" << (window_->shouldClose() ? "true" : "false") << std::endl;
             // If window was resized, recreate swapchain-dependent resources
             if (window_->wasResized()) {
                 recreateResources();
             }
-            std::cout << "App: about to draw frame" << std::endl;
-            vulkan::Renderer::drawFrame(vk_);
-            std::cout << "App: drew frame" << std::endl;
+            vulkan::Renderer::drawFrame(vk_, window_->getNativeWindow());
 
             // FPS counting
             frameCount_++;
@@ -140,9 +143,20 @@
 
     void App::recreateResources() {
         if (!vk_ || !vk_->device) return;
-        // wait and recreate swapchain and renderer resources
-        vulkan::SwapchainManager::recreateSwapchain(vk_, window_->getNativeWindow());
-        vulkan::Renderer::recreate(vk_, window_->getNativeWindow());
+    std::cout << "App: recreating resources due to resize" << std::endl;
+    // wait and recreate swapchain and renderer resources
+    vulkan::SwapchainManager::recreateSwapchain(vk_, window_->getNativeWindow());
+    std::cout << "App: swapchain recreation returned" << std::endl;
+        try {
+            vulkan::Renderer::recreate(vk_, window_->getNativeWindow());
+            std::cout << "App: renderer recreation returned" << std::endl;
+        } catch (const std::exception &e) {
+            std::cerr << "App: exception during Renderer::recreate: " << e.what() << std::endl;
+            return;
+        } catch (...) {
+            std::cerr << "App: unknown exception during Renderer::recreate" << std::endl;
+            return;
+        }
         window_->clearResizedFlag();
     }
 
