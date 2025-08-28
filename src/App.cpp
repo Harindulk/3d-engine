@@ -172,4 +172,33 @@
         }
     }
 
+    bool App::frame() {
+        if (window_->shouldClose()) return false;
+        if (lastFPSTime_ == 0.0) {
+            lastFPSTime_ = glfwGetTime();
+        }
+        window_->pollEvents();
+        if (window_->wasResized()) {
+            recreateResources();
+        }
+        vulkan::Renderer::drawFrame(vk_, window_->getNativeWindow());
+        frameCount_++;
+        double now = glfwGetTime();
+        double elapsed = now - lastFPSTime_;
+        if (elapsed >= 1.0) {
+            fps_ = static_cast<int>(frameCount_ / elapsed + 0.5);
+            frameCount_ = 0;
+            lastFPSTime_ = now;
+            std::string title = "Aurora3D - FPS: " + std::to_string(fps_);
+            window_->setTitle(title);
+        }
+        return true;
+    }
+
+    void App::resetFrameStats() {
+        frameCount_ = 0;
+        lastFPSTime_ = 0.0;
+        fps_ = 0;
+    }
+
     // Validation / debug handled by vulkan::InstanceManager

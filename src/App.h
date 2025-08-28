@@ -15,6 +15,9 @@ public:
     App& operator=(const App&) = delete;
 
     void run();
+    // New: perform a single frame (returns false when window requests close)
+    bool frame();
+    void resetFrameStats();
 
 private:
     void initWindow(int width, int height, const char* title);
