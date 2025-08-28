@@ -30,6 +30,8 @@
 #include "vulkan/Swapchain.h"
 #include "vulkan/Renderer.h"
 #include "window/Window.h"
+#include "render/Mesh.h"
+#include "vulkan/BufferUtils.h"
 
     App::App(int width, int height, const char* title) {
         window_ = new Window(width, height, title);
@@ -75,6 +77,20 @@
         std::cout << "App: command buffers created" << std::endl;
         vulkan::Renderer::createSyncObjects(vk_);
     std::cout << "App: sync objects created" << std::endl;
+
+    // Create triangle vertex buffer via Mesh abstraction
+    auto tri = render::Mesh::makeTriangle();
+    vk_->vertexCount = static_cast<uint32_t>(tri.vertices().size());
+    VkDeviceSize sizeBytes = sizeof(Vertex) * tri.vertices().size();
+    vkbuf::createBuffer(vk_->device, vk_->physicalDevice, sizeBytes,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        vk_->vertexBuffer, vk_->vertexBufferMemory);
+    // Upload data
+    void* mapped = nullptr;
+    vkMapMemory(vk_->device, vk_->vertexBufferMemory, 0, sizeBytes, 0, &mapped);
+    std::memcpy(mapped, tri.vertices().data(), sizeBytes);
+    vkUnmapMemory(vk_->device, vk_->vertexBufferMemory);
     }
 
     void App::createSurface() {

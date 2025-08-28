@@ -82,9 +82,16 @@ void Renderer::createGraphicsPipeline(VkObjects* vk) {
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertStage, fragStage };
 
+    // Vertex input (position + color)
+    VkVertexInputBindingDescription binding{}; binding.binding = 0; binding.stride = sizeof(float)*5; binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    VkVertexInputAttributeDescription attrs[2]{};
+    attrs[0].binding = 0; attrs[0].location = 0; attrs[0].format = VK_FORMAT_R32G32_SFLOAT; attrs[0].offset = 0; // pos
+    attrs[1].binding = 0; attrs[1].location = 1; attrs[1].format = VK_FORMAT_R32G32B32_SFLOAT; attrs[1].offset = sizeof(float)*2; // color
     VkPipelineVertexInputStateCreateInfo vertexInput{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-    vertexInput.vertexBindingDescriptionCount = 0;
-    vertexInput.vertexAttributeDescriptionCount = 0;
+    vertexInput.vertexBindingDescriptionCount = 1;
+    vertexInput.pVertexBindingDescriptions = &binding;
+    vertexInput.vertexAttributeDescriptionCount = 2;
+    vertexInput.pVertexAttributeDescriptions = attrs;
 
     VkPipelineInputAssemblyStateCreateInfo inputAsm{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
     inputAsm.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -193,7 +200,14 @@ void Renderer::createCommandBuffers(VkObjects* vk) {
 
         vkCmdBeginRenderPass(vk->commandBuffers[i], &rpbi, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(vk->commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk->graphicsPipeline);
-        vkCmdDraw(vk->commandBuffers[i], 3, 1, 0, 0);
+        if (vk->vertexBuffer) {
+            VkBuffer buffers[] = { vk->vertexBuffer };
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(vk->commandBuffers[i], 0, 1, buffers, offsets);
+            vkCmdDraw(vk->commandBuffers[i], vk->vertexCount, 1, 0, 0);
+        } else {
+            vkCmdDraw(vk->commandBuffers[i], 3, 1, 0, 0);
+        }
         vkCmdEndRenderPass(vk->commandBuffers[i]);
 
         if (vkEndCommandBuffer(vk->commandBuffers[i]) != VK_SUCCESS) {
