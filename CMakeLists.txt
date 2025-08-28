@@ -39,12 +39,26 @@ endif()
 # Vulkan
 find_package(Vulkan REQUIRED)
 
-# Sources
-file(GLOB_RECURSE AURORA_SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.h)
-add_executable(aurora3d ${AURORA_SOURCES})
-source_group(TREE ${CMAKE_SOURCE_DIR}/src PREFIX "Source" FILES ${AURORA_SOURCES})
+# Engine library (public headers in engine/include)
+file(GLOB_RECURSE AURORA_ENGINE_SRC CONFIGURE_DEPENDS engine/src/*.cpp)
+add_library(aurora_engine STATIC ${AURORA_ENGINE_SRC})
+target_include_directories(aurora_engine PUBLIC ${CMAKE_SOURCE_DIR}/engine/include)
+target_include_directories(aurora_engine PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/engine/src)
 
-target_include_directories(aurora3d PRIVATE ${CMAKE_SOURCE_DIR}/src)
+# Temporary: engine still depends on current src/ implementation (App & Vulkan managers) until migrated
+file(GLOB_RECURSE AURORA_LEGACY_SRC CONFIGURE_DEPENDS src/*.cpp src/*.h)
+target_sources(aurora_engine PRIVATE ${AURORA_LEGACY_SRC})
+
+source_group(TREE ${CMAKE_SOURCE_DIR}/engine/src PREFIX "Engine Source" FILES ${AURORA_ENGINE_SRC})
+source_group(TREE ${CMAKE_SOURCE_DIR}/src PREFIX "Legacy Source" FILES ${AURORA_LEGACY_SRC})
+
+# Original executable (will later become a sample or be removed)
+add_executable(aurora3d src/main.cpp)
+target_link_libraries(aurora3d PRIVATE aurora_engine)
+
+# Sample minimal game using engine API
+add_executable(minimal_game samples/MinimalGame/main.cpp)
+target_link_libraries(minimal_game PRIVATE aurora_engine)
 
 if(AURORA_FORCE_VALIDATION)
   message(STATUS "Aurora3D: forcing validation layers ON (AURORA_FORCE_VALIDATION=ON)")
@@ -56,13 +70,16 @@ else()
   message(STATUS "Aurora3D: validation layers disabled")
 endif()
 
-target_link_libraries(aurora3d PRIVATE ${GLFW_LIB} Vulkan::Vulkan)
+target_link_libraries(aurora_engine PRIVATE ${GLFW_LIB} Vulkan::Vulkan)
+target_link_libraries(aurora3d PRIVATE aurora_engine)
+target_link_libraries(minimal_game PRIVATE aurora_engine)
 
 if(APPLE)
   target_link_libraries(aurora3d PRIVATE "-framework Cocoa" "-framework IOKit" "-framework CoreFoundation")
 endif()
 
 set_target_properties(aurora3d PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set_target_properties(minimal_game PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # --- Shader compilation (triangle example) ---
 find_program(GLSLANG_VALIDATOR glslangValidator HINTS $ENV{VULKAN_SDK}/bin)
