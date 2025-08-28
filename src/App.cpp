@@ -32,6 +32,7 @@
 #include "window/Window.h"
 #include "render/Mesh.h"
 #include "vulkan/BufferUtils.h"
+#include "vulkan/Utils.h"
 
     App::App(int width, int height, const char* title) {
         window_ = new Window(width, height, title);
@@ -64,6 +65,19 @@
     vulkan::SwapchainManager::createImageViews(vk_);
     std::cout << "App: image views created" << std::endl;
 
+    // Depth resources (choose format and create image+view)
+    vk_->depthFormat = vkutils::findDepthFormat(vk_->physicalDevice);
+    vkutils::createImage(vk_->device, vk_->physicalDevice, vk_->swapchainExtent.width, vk_->swapchainExtent.height, vk_->depthFormat,
+        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        vk_->depthImage, vk_->depthImageMemory);
+    vk_->depthImageView = vkutils::createImageView(vk_->device, vk_->depthImage, vk_->depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+    // Transition depth layout
+    vulkan::Renderer::createCommandPool(vk_); // ensure a pool exists for one-shot (will be recreated later anyway)
+    vkutils::transitionImageLayout(vk_->device, vk_->commandPool, vk_->graphicsQueue, vk_->depthImage, vk_->depthFormat,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    // destroy temp pool resources to recreate properly below
+    vkDestroyCommandPool(vk_->device, vk_->commandPool, nullptr); vk_->commandPool = VK_NULL_HANDLE;
+
     // swapchain format/extent are set by SwapchainManager
         vulkan::Renderer::createRenderPass(vk_);
         std::cout << "App: render pass created" << std::endl;
@@ -71,26 +85,36 @@
         std::cout << "App: graphics pipeline created" << std::endl;
     vulkan::SwapchainManager::createFramebuffers(vk_);
     std::cout << "App: framebuffers created" << std::endl;
-        vulkan::Renderer::createCommandPool(vk_);
-        std::cout << "App: command pool created" << std::endl;
-        vulkan::Renderer::createCommandBuffers(vk_);
-        std::cout << "App: command buffers created" << std::endl;
-        vulkan::Renderer::createSyncObjects(vk_);
-    std::cout << "App: sync objects created" << std::endl;
 
-    // Create triangle vertex buffer via Mesh abstraction
+    // Create triangle mesh GPU buffers BEFORE command buffers so they can record correct draws
     auto tri = render::Mesh::makeTriangle();
     vk_->vertexCount = static_cast<uint32_t>(tri.vertices().size());
-    VkDeviceSize sizeBytes = sizeof(Vertex) * tri.vertices().size();
-    vkbuf::createBuffer(vk_->device, vk_->physicalDevice, sizeBytes,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        vk_->vertexBuffer, vk_->vertexBufferMemory);
-    // Upload data
-    void* mapped = nullptr;
-    vkMapMemory(vk_->device, vk_->vertexBufferMemory, 0, sizeBytes, 0, &mapped);
-    std::memcpy(mapped, tri.vertices().data(), sizeBytes);
-    vkUnmapMemory(vk_->device, vk_->vertexBufferMemory);
+    vk_->indexCount = static_cast<uint32_t>(tri.indices().size());
+    VkDeviceSize vtxSize = sizeof(Vertex) * tri.vertices().size();
+    VkDeviceSize idxSize = sizeof(uint32_t) * tri.indices().size();
+    if (vk_->vertexCount) {
+        vkbuf::createBuffer(vk_->device, vk_->physicalDevice, vtxSize,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            vk_->vertexBuffer, vk_->vertexBufferMemory);
+        void* mapped = nullptr; vkMapMemory(vk_->device, vk_->vertexBufferMemory, 0, vtxSize, 0, &mapped);
+        std::memcpy(mapped, tri.vertices().data(), vtxSize); vkUnmapMemory(vk_->device, vk_->vertexBufferMemory);
+    }
+    if (vk_->indexCount) {
+        vkbuf::createBuffer(vk_->device, vk_->physicalDevice, idxSize,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            vk_->indexBuffer, vk_->indexBufferMemory);
+        void* mappedIdx = nullptr; vkMapMemory(vk_->device, vk_->indexBufferMemory, 0, idxSize, 0, &mappedIdx);
+        std::memcpy(mappedIdx, tri.indices().data(), idxSize); vkUnmapMemory(vk_->device, vk_->indexBufferMemory);
+    }
+
+    vulkan::Renderer::createCommandPool(vk_);
+    std::cout << "App: command pool created" << std::endl;
+    vulkan::Renderer::createCommandBuffers(vk_);
+    std::cout << "App: command buffers created" << std::endl;
+    vulkan::Renderer::createSyncObjects(vk_);
+    std::cout << "App: sync objects created" << std::endl;
     }
 
     void App::createSurface() {
@@ -113,8 +137,16 @@
         for (auto s : vk_->imageAvailableSemaphores) if (s) vkDestroySemaphore(vk_->device, s, nullptr);
         for (auto f : vk_->inFlightFences) if (f) vkDestroyFence(vk_->device, f, nullptr);
 
-        // Destroy command pool
-        if (vk_->commandPool) vkDestroyCommandPool(vk_->device, vk_->commandPool, nullptr);
+    // Destroy command pool
+    if (vk_->commandPool) vkDestroyCommandPool(vk_->device, vk_->commandPool, nullptr);
+    if (vk_->depthImageView) vkDestroyImageView(vk_->device, vk_->depthImageView, nullptr);
+    if (vk_->depthImage) vkDestroyImage(vk_->device, vk_->depthImage, nullptr);
+    if (vk_->depthImageMemory) vkFreeMemory(vk_->device, vk_->depthImageMemory, nullptr);
+    // Destroy geometry buffers
+    if (vk_->vertexBuffer) vkDestroyBuffer(vk_->device, vk_->vertexBuffer, nullptr);
+    if (vk_->vertexBufferMemory) vkFreeMemory(vk_->device, vk_->vertexBufferMemory, nullptr);
+    if (vk_->indexBuffer) vkDestroyBuffer(vk_->device, vk_->indexBuffer, nullptr);
+    if (vk_->indexBufferMemory) vkFreeMemory(vk_->device, vk_->indexBufferMemory, nullptr);
 
     // Destroy swapchain and related
     vulkan::SwapchainManager::cleanupSwapchain(vk_);
@@ -163,6 +195,15 @@
     // wait and recreate swapchain and renderer resources
     vulkan::SwapchainManager::recreateSwapchain(vk_, window_->getNativeWindow());
     std::cout << "App: swapchain recreation returned" << std::endl;
+    // Recreate depth resources for new extent
+    if (vk_->depthImageView) vkDestroyImageView(vk_->device, vk_->depthImageView, nullptr);
+    if (vk_->depthImage) vkDestroyImage(vk_->device, vk_->depthImage, nullptr);
+    if (vk_->depthImageMemory) vkFreeMemory(vk_->device, vk_->depthImageMemory, nullptr);
+    vkutils::createImage(vk_->device, vk_->physicalDevice, vk_->swapchainExtent.width, vk_->swapchainExtent.height, vk_->depthFormat,
+        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        vk_->depthImage, vk_->depthImageMemory);
+    vk_->depthImageView = vkutils::createImageView(vk_->device, vk_->depthImage, vk_->depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+    // transition using existing command pool after renderer recreate will rebuild pool; create temp if needed
         try {
             vulkan::Renderer::recreate(vk_, window_->getNativeWindow());
             std::cout << "App: renderer recreation returned" << std::endl;

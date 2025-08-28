@@ -17,6 +17,7 @@ public:
 int main() {
     aurora::EngineConfig cfg; cfg.title = "Aurora Minimal Game"; cfg.width=1280; cfg.height=720;
     aurora::Engine engine(cfg);
+    engine.enableEditorMode();
     MinimalGame game;
     engine.run(game);
     return 0;

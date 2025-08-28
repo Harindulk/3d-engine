@@ -90,9 +90,14 @@ void SwapchainManager::createSwapchain(VkObjects* vk, GLFWwindow* window) {
     ci.imageArrayLayers = 1;
     ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    ci.queueFamilyIndexCount = 0;
-    ci.pQueueFamilyIndices = nullptr;
+    uint32_t queueFamilyIndices[2] = { vk->graphicsQueueFamily, vk->presentQueueFamily };
+    if (vk->graphicsQueueFamily != vk->presentQueueFamily) {
+        ci.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        ci.queueFamilyIndexCount = 2;
+        ci.pQueueFamilyIndices = queueFamilyIndices;
+    } else {
+        ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
 
     ci.preTransform = details.capabilities.currentTransform;
     ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -142,10 +147,10 @@ void SwapchainManager::createImageViews(VkObjects* vk) {
 void SwapchainManager::createFramebuffers(VkObjects* vk) {
     vk->swapchainFramebuffers.resize(vk->swapchainImageViews.size());
     for (size_t i = 0; i < vk->swapchainImageViews.size(); ++i) {
-        VkImageView attachments[] = { vk->swapchainImageViews[i] };
+        VkImageView attachments[] = { vk->swapchainImageViews[i], vk->depthImageView };
         VkFramebufferCreateInfo fci{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         fci.renderPass = vk->renderPass;
-        fci.attachmentCount = 1;
+        fci.attachmentCount = 2;
         fci.pAttachments = attachments;
         fci.width = vk->swapchainExtent.width;
         fci.height = vk->swapchainExtent.height;

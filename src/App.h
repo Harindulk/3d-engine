@@ -19,6 +19,9 @@ public:
     bool frame();
     void resetFrameStats();
 
+    // Temporary access to Vulkan objects for engine higher-level systems
+    VkObjects* getVkObjects() const { return vk_; }
+
 private:
     void initWindow(int width, int height, const char* title);
     void initVulkan();
