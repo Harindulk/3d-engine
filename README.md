@@ -97,8 +97,4 @@ int main(){ aurora::EngineConfig cfg; cfg.title = "My Game"; aurora::Engine e(cf
 - Crash on resize: report if persists—swapchain / framebuffer recreation order recently updated.
 - Validation errors: run Debug build or force enable validation to catch misuse early.
 
-## License
-Currently experimental; no explicit license file yet. Add one before public distribution.
 
----
-Future contributions: focus on clean abstractions first (Mesh, Material, Camera) before adding editor UI.
