@@ -160,9 +160,6 @@ void SwapchainManager::cleanupSwapchain(VkObjects* vk) {
     if (!vk) return;
     for (auto fb : vk->swapchainFramebuffers) if (fb) vkDestroyFramebuffer(vk->device, fb, nullptr);
     vk->swapchainFramebuffers.clear();
-    if (vk->graphicsPipeline) vkDestroyPipeline(vk->device, vk->graphicsPipeline, nullptr);
-    if (vk->pipelineLayout) vkDestroyPipelineLayout(vk->device, vk->pipelineLayout, nullptr);
-    if (vk->renderPass) vkDestroyRenderPass(vk->device, vk->renderPass, nullptr);
     for (auto iv : vk->swapchainImageViews) if (iv) vkDestroyImageView(vk->device, iv, nullptr);
     vk->swapchainImageViews.clear();
     if (vk->swapchain) {
@@ -181,9 +178,7 @@ void SwapchainManager::recreateSwapchain(VkObjects* vk, GLFWwindow* window) {
     std::cout << "Swapchain: created new swapchain" << std::endl;
     createImageViews(vk);
     std::cout << "Swapchain: image views created" << std::endl;
-    // render pass and pipeline may depend on extent; leave framebuffer creation to caller
-    createFramebuffers(vk);
-    std::cout << "Swapchain: framebuffers created" << std::endl;
+    // framebuffers created after new render pass/pipeline (in renderer recreate)
 }
 
 } // namespace vulkan

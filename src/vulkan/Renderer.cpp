@@ -280,9 +280,9 @@ void Renderer::cleanupRenderer(VkObjects* vk) {
 
     // Note: framebuffers, image views, swapchain destroyed by SwapchainManager
 
-    if (vk->graphicsPipeline) vkDestroyPipeline(vk->device, vk->graphicsPipeline, nullptr);
-    if (vk->pipelineLayout) vkDestroyPipelineLayout(vk->device, vk->pipelineLayout, nullptr);
-    if (vk->renderPass) vkDestroyRenderPass(vk->device, vk->renderPass, nullptr);
+    if (vk->graphicsPipeline) { vkDestroyPipeline(vk->device, vk->graphicsPipeline, nullptr); vk->graphicsPipeline = VK_NULL_HANDLE; }
+    if (vk->pipelineLayout) { vkDestroyPipelineLayout(vk->device, vk->pipelineLayout, nullptr); vk->pipelineLayout = VK_NULL_HANDLE; }
+    if (vk->renderPass) { vkDestroyRenderPass(vk->device, vk->renderPass, nullptr); vk->renderPass = VK_NULL_HANDLE; }
 }
 
 void Renderer::recreate(VkObjects* vk, GLFWwindow* window) {
@@ -300,6 +300,9 @@ void Renderer::recreate(VkObjects* vk, GLFWwindow* window) {
     createRenderPass(vk);
     std::cout << "Renderer: creating graphics pipeline" << std::endl;
     createGraphicsPipeline(vk);
+    // now that new render pass/pipeline exist, rebuild swapchain framebuffers
+    std::cout << "Renderer: creating framebuffers" << std::endl;
+    vulkan::SwapchainManager::createFramebuffers(vk);
 
     // recreate framebuffers for new swapchain extent
     // command buffers and sync objects need to be recreated
