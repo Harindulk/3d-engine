@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 #include <vulkan/vulkan.h>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 struct VkObjects;
