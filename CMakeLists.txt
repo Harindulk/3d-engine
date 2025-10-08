@@ -60,6 +60,22 @@ target_link_libraries(aurora3d PRIVATE aurora_engine)
 add_executable(minimal_game samples/MinimalGame/main.cpp)
 target_link_libraries(minimal_game PRIVATE aurora_engine)
 
+# Advanced Rendering Example
+add_executable(advanced_rendering samples/AdvancedRendering/main.cpp)
+target_link_libraries(advanced_rendering PRIVATE aurora_engine)
+
+# Performance Demo (Stress Test)
+add_executable(performance_demo samples/PerformanceDemo/main.cpp)
+target_link_libraries(performance_demo PRIVATE aurora_engine)
+
+# Animated Scene Demo
+add_executable(animated_scene samples/AnimatedScene/main.cpp)
+target_link_libraries(animated_scene PRIVATE aurora_engine)
+
+# Interactive Demo
+add_executable(interactive_demo samples/InteractiveDemo/main.cpp)
+target_link_libraries(interactive_demo PRIVATE aurora_engine)
+
 if(AURORA_FORCE_VALIDATION)
   message(STATUS "Aurora3D: forcing validation layers ON (AURORA_FORCE_VALIDATION=ON)")
   target_compile_definitions(aurora3d PRIVATE AURORA_ENABLE_VALIDATION)
@@ -73,6 +89,10 @@ endif()
 target_link_libraries(aurora_engine PRIVATE ${GLFW_LIB} Vulkan::Vulkan)
 target_link_libraries(aurora3d PRIVATE aurora_engine)
 target_link_libraries(minimal_game PRIVATE aurora_engine)
+target_link_libraries(advanced_rendering PRIVATE aurora_engine)
+target_link_libraries(performance_demo PRIVATE aurora_engine)
+target_link_libraries(animated_scene PRIVATE aurora_engine)
+target_link_libraries(interactive_demo PRIVATE aurora_engine)
 
 if(APPLE)
   target_link_libraries(aurora3d PRIVATE "-framework Cocoa" "-framework IOKit" "-framework CoreFoundation")
@@ -80,6 +100,10 @@ endif()
 
 set_target_properties(aurora3d PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set_target_properties(minimal_game PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set_target_properties(advanced_rendering PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set_target_properties(performance_demo PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set_target_properties(animated_scene PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set_target_properties(interactive_demo PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # --- Shader compilation (triangle example) ---
 find_program(GLSLANG_VALIDATOR glslangValidator HINTS $ENV{VULKAN_SDK}/bin)

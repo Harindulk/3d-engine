@@ -1,4 +1,4 @@
-﻿#include "vulkan/BufferUtils.h"
+#include "vulkan/BufferUtils.h"
 #include <stdexcept>
 #include <cstring>
 

@@ -34,7 +34,12 @@ src/               # Legacy runtime modules (will be migrated behind Engine PIMP
   vulkan/          # Vulkan managers & helpers
   window/          # GLFW window wrapper
   shaders/         # GLSL sources (compiled to build/shaders/*.spv)
-samples/MinimalGame# Sample using the engine library API
+samples/           # Example projects showcasing engine capabilities
+  MinimalGame/     # Basic engine usage example
+  AdvancedRendering/ # Multi-pass rendering demo
+  PerformanceDemo/ # Stress test with 100,000+ objects
+  AnimatedScene/   # Procedural animation example
+  InteractiveDemo/ # Input & camera control demo
 external/glfw      # GLFW (when building bundled)
 ```
 
@@ -63,6 +68,12 @@ cmake --build build --config Debug
 
 # Run sample using Engine API
 ./build/bin/Debug/minimal_game.exe
+
+# Run extreme examples (see EXAMPLES.md for details)
+./build/bin/Debug/advanced_rendering.exe
+./build/bin/Debug/performance_demo.exe
+./build/bin/Debug/animated_scene.exe
+./build/bin/Debug/interactive_demo.exe
 ```
 
 ## CMake Options
@@ -97,4 +108,13 @@ int main(){ aurora::EngineConfig cfg; cfg.title = "My Game"; aurora::Engine e(cf
 - Crash on resize: report if persists—swapchain / framebuffer recreation order recently updated.
 - Validation errors: run Debug build or force enable validation to catch misuse early.
 
+## Examples
+
+See **[EXAMPLES.md](EXAMPLES.md)** for detailed documentation on all available examples, including:
+- **AdvancedRendering**: Multi-pass rendering with 10,000+ draw calls
+- **PerformanceDemo**: Stress test with 100,000+ objects
+- **AnimatedScene**: Procedural animation with 1,000+ animated objects  
+- **InteractiveDemo**: Advanced input handling with 10,000+ selectable objects
+
+Each example showcases extreme capabilities of the Aurora3D engine.
 
